@@ -1,0 +1,15 @@
+batch_size: 32
+learning_rate: 0.001
+lr_min: 0.001
+lr_decay: 0.001
+lr_decay_steps: 50000
+discount_factor: 0.99
+max_epsilon: 1
+min_epsilon: 0.1
+decay_epsilon: 0.001
+train_steps: 1000000
+log_dir: /home/guillaume/src/rl/logs
+max_queue_length: 50000
+target_model_update: 10000
+max_steps_per_episode: 99
+warmup_steps: 500

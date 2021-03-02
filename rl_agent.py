@@ -12,7 +12,6 @@ from memory import Memory
 from callback import LogTensorBoard, ExponentialDecay
 from IPython.display import clear_output
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Embedding, Reshape
 from tensorflow.keras.regularizers import l1_l2, l1, l2
 from tensorflow.keras.initializers import HeUniform
 from tensorflow.keras.optimizers import Adam
@@ -26,14 +25,13 @@ def clone_model(model):
 
 
 class QAgent():
-    def __init__(self, env=None, config:str=None, seed:int=None, model:tensorflow.keras.Model=None):
+    def __init__(self, env=None, config:str=None, seed:int=None, model:tf.keras.Model=None):
         assert env is not None, "A GYM environment must be provided"
         assert config is not None, "A config filename must be provided"
         assert model is not None, "A keras model must be provided"
         self.env = env
         self.config = Config(config)
         self.model = model
-        self.model = None
         self.target_model = None
         self.tensorboard = LogTensorBoard(log_dir=os.path.join(self.config.log_dir, f'train_{int(time.time())}'))
         self.rng = np.random.default_rng(seed)

@@ -73,7 +73,7 @@ class QAgent():
         # current Q values for each action
         q_values = self.model.predict_on_batch(current_states)
         
-        # identity the best action to take and get the corresponding target Q value
+        # identify the best action to take and get the corresponding target Q value
         target_q_values = self.target_model.predict_on_batch(next_states)
         q_batch = np.max(target_q_values, axis=1).flatten()
         
@@ -81,7 +81,7 @@ class QAgent():
         q_values[indices] = mini_batch.rewards + (1 - mini_batch.done) * self.config.discount_factor * q_batch
         
         # As the model will predict `q_values`, only the Q value for the proper action (given by indices)
-        # differ and count for the loss computation.)
+        # differ and count for the loss computation.
         self.tensorboard.on_step_begin()
         metrics = self.model.train_on_batch(current_states.astype(np.float32), q_values.astype(np.float32), return_dict=True)
         self.tensorboard.on_step_end(step=step, logs=metrics)
@@ -119,7 +119,7 @@ class QAgent():
             
             pbar = trange(self.initial_step, self.config.train_steps, initial=self.initial_step, total=self.config.train_steps)
             for step in pbar: 
-                # Explore/Exploit using the Epsilon Greedy Exploration Strategy
+                # Greedy exploration strategy
                 action = self._choose_action(state, epsilon)
                 new_state, reward, done, info = self.env.step(action)
                 
@@ -128,7 +128,7 @@ class QAgent():
                     done = True
                 self._remember(state, action, reward, new_state, done)
 
-                # Update the Main Network using the Bellman Equation
+                # Train with the Bellman equation
                 if step > self.config.warmup_steps:
                     self._train_model(step)
 

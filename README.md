@@ -1,6 +1,6 @@
 # Reinforcement Learning
 
-Some exploration scripts and notebooks into RL world with OpenAI/gym and Keras.
+Some exploration scripts and notebooks into RL world with OpenAI/gym and Keras or Pytorch.
 Keras-RL is also explored along with my proper DQN implementation.
 
 Usefull references

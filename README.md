@@ -3,6 +3,12 @@
 Some exploration scripts and notebooks into RL world with OpenAI/gym and Keras or Pytorch.
 Keras-RL is also explored along with my proper DQN implementation.
 
+The toy example environment chosen is the Taxi-v3 for its simplicity and the possibility to work directly with a finite length Q-table.
+
+<center>
+<img src="images/taxi_env.png"/>
+</center>
+
 Usefull references
 * https://towardsdatascience.com/reinforcement-learning-lets-teach-a-taxi-cab-how-to-drive-4fd1a0d00529
 * https://www.learndatasci.com/tutorials/reinforcement-q-learning-scratch-python-openai-gym/

@@ -51,6 +51,27 @@ class Memory():
         self.rewards.append(reward)
         self.new_states.append(new_state)
         self.done.append(done)
+
+    def json(self):
+        return {
+            "states": [int(v) for v in self.states],
+            "actions": [int(v) for v in self.actions],
+            "rewards": [int(v) for v in self.rewards],
+            "new_states": [int(v) for v in self.new_states],
+            "done": [int(v) for v in self.done]
+        }
+
+    def load(self, json_dict):
+        for v in json_dict["states"]:
+            self.states.append(v)
+        for v in json_dict["actions"]:
+            self.actions.append(v)
+        for v in json_dict["rewards"]:
+            self.rewards.append(v)
+        for v in json_dict["new_states"]:
+            self.new_states.append(v)
+        for v in json_dict["done"]:
+            self.done.append(bool(v))
         
     @property
     def length(self):

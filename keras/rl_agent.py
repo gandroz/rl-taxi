@@ -1,4 +1,5 @@
 import os
+import json
 import time
 import numpy as np
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
@@ -11,6 +12,7 @@ from config import Config
 from memory import Memory
 from callback import LogTensorBoard, ExponentialDecay
 from IPython.display import clear_output
+from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.regularizers import l1_l2, l1, l2
 from tensorflow.keras.initializers import HeUniform
@@ -23,6 +25,9 @@ def clone_model(model):
     clone.set_weights(model.get_weights())
     return clone
 
+# https://towardsdatascience.com/reinforcement-learning-explained-visually-part-5-deep-q-networks-step-by-step-5a5317197f4b
+# https://towardsdatascience.com/reinforcement-learning-explained-visually-part-6-policy-gradients-step-by-step-f9f448e73754
+
 
 class QAgent():
     def __init__(self, env=None, config:str=None, seed:int=None, model:tf.keras.Model=None):
@@ -30,22 +35,27 @@ class QAgent():
         assert config is not None, "A config filename must be provided"
         assert model is not None, "A keras model must be provided"
         self.env = env
-        self.config = Config(config)
+        self.config_file = config
+        self.config = Config(self.config_file)
+        self.model_name = f'train_{int(time.time())}'
+        self.log_dir = ""
         self.model = model
         self.target_model = None
-        self.tensorboard = LogTensorBoard(log_dir=os.path.join(self.config.log_dir, f'train_{int(time.time())}'))
+        self.tensorboard = None
         self.rng = np.random.default_rng(seed)
-        self.memory = Memory(max_len=self.config.max_queue_length)
-        self.initial_step = 0
+        self.memory = None
+        self.last_step = 0
+        self.current_episode = 0
     
-    def compile(self):        
-        lr_schedule = ExponentialDecay(
-                                initial_learning_rate=self.config.learning_rate,
-                                decay_steps=self.config.lr_decay_steps,
-                                decay_rate=self.config.lr_decay,
-                                lr_min=self.config.lr_min)
-        optimizer = Adam(learning_rate=lr_schedule)
-        loss = Huber()
+    def compile(self, optimizer=None, loss=Huber()):
+        # lr_schedule = ExponentialDecay(
+        #                         initial_learning_rate=self.config.learning_rate,
+        #                         decay_steps=self.config.lr_decay_steps,
+        #                         decay_rate=self.config.lr_decay,
+        #                         lr_min=self.config.lr_min)
+        # optimizer = Adam(learning_rate=lr_schedule)
+        if optimizer is None:
+            optimizer = Adam(learning_rate=self.config.learning_rate)
         
         self.target_model = clone_model(self.model)
         self.target_model.compile(optimizer='sgd', loss='mse')
@@ -53,8 +63,49 @@ class QAgent():
         self.model.compile(loss=loss,
                            optimizer=optimizer,
                            metrics=['accuracy'])
+    
+    def adjust_lr(self, lr=None):
+        assert lr is not None
+        K.set_value(self.model.optimizer.learning_rate, lr)
 
-        self.tensorboard.set_model(self.model)
+    def load_model(self, filepath):
+        self.model.load_weights(filepath)
+        self.target_model.set_weights(self.model.get_weights())
+
+    def save(self, filepath=""):
+        self.save_model(filepath)
+        self.save_checkpoint(filepath)
+
+    def save_model(self, filepath=""):
+        filepath = os.path.join(filepath, "models")
+        if not os.path.exists(filepath):
+            os.makedirs(filepath)
+        self.model.save_weights(os.path.join(filepath, self.model_name + ".h5"), overwrite=True)
+
+    def save_checkpoint(self, filepath=""):
+        filepath = os.path.join(filepath, "models")
+        if not os.path.exists(filepath):
+            os.makedirs(filepath)
+        # save memory, current step
+        data = {
+                "memory": self.memory.json(), 
+                "last_step": self.last_step,
+                "current_episode": self.current_episode,
+                "model_name": self.model_name
+                }
+        with open(os.path.join(filepath, self.model_name + "_checkpoint.json"), "w") as jsonfile:
+            json.dump(data, jsonfile)
+
+    def load_checkpoint(self, filename):
+        with open(filename, "r") as json_file:
+            data = json.load(json_file)
+        self.last_step = data['last_step']
+        self.current_episode = data['current_episode']
+        self.model_name = data['model_name']
+        if self.memory is None:
+            self.config = Config(self.config_file)
+            self.memory = Memory(max_len=self.config.max_queue_length)
+        self.memory.load(data['memory'])
 
     def _encode_state(self, state):
         return state
@@ -108,23 +159,37 @@ class QAgent():
         return action
 
     def fit(self):
-        try:        
+        
+        try:
+            self.config = Config(self.config_file)
+            if self.tensorboard is None:
+                self.log_dir = os.path.join(self.config.log_dir, self.model_name)        
+                self.tensorboard = LogTensorBoard(log_dir=self.log_dir)
+            self.tensorboard.set_model(self.model)
+
+            if self.memory is None:
+                self.memory = Memory(max_len=self.config.max_queue_length)
+
             state = self.env.reset()
-            done = False
-            episode = 0
-            epsilon = self._get_epsilon(episode)
+            done = False            
+            epsilon = self._get_epsilon(self.current_episode)
             steps_in_episode = 0
+            reward_queue = deque(maxlen=10)
+            reward_in_episode = 0
             
-            pbar = trange(self.initial_step, self.config.train_steps, initial=self.initial_step, total=self.config.train_steps)
+            pbar = trange(self.last_step, self.config.train_steps, initial=self.last_step, total=self.config.train_steps)
             for step in pbar: 
+                steps_in_episode += 1
+                self.last_step = step
+
                 # Greedy exploration strategy
                 action = self._choose_action(state, epsilon)
                 new_state, reward, done, info = self.env.step(action)
-                
-                steps_in_episode += 1
+                self._remember(state, action, reward, new_state, done)
+                reward_in_episode += reward
+
                 if steps_in_episode == self.config.max_steps_per_episode:
                     done = True
-                self._remember(state, action, reward, new_state, done)
 
                 # Train with the Bellman equation
                 if step > self.config.warmup_steps:
@@ -136,15 +201,19 @@ class QAgent():
                     steps_in_episode = 0
                     state = self.env.reset()
                     done = False
-                    episode += 1
-                    epsilon = self._get_epsilon(episode)
+                    self.current_episode += 1
+                    reward_queue.append(reward_in_episode)
+                    reward_in_episode = 0
+                    epsilon = self._get_epsilon(self.current_episode)
+                    pbar.set_postfix({"reward": np.mean(reward_queue)})
                 
                 if step % self.config.target_model_update == 0:
                     self.target_model.set_weights(self.model.get_weights())
-
+            
+            self.last_step += 1
+            
         except KeyboardInterrupt:
             print("Training has been interrupted")
-            self.initial_step = step
             
     def play(self, verbose:bool=False, sleep:float=0.2, max_steps:int=100):
         # Play an episode

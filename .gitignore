@@ -3,3 +3,4 @@ logs
 .ipynb_checkpoints
 .vscode
 __pycache__
+models

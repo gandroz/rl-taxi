@@ -5,6 +5,7 @@ from itertools import count
 import numpy as np
 from pytorch.memory import ReplayMemory, Transition
 from pytorch.config import Config
+from pathlib import Path
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -25,7 +26,7 @@ else:
 class QAgent():
     def __init__(self, env, config, model_class):
         self.env = env
-        self.model_dir = './models'
+        self.model_dir = Path('./models')
         self.model_class = model_class
         self.config_file = config
         # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

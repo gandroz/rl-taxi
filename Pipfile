@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+gym = "~=0.17.1"
+torch = "~=1.8.0"
+tqdm = "~=4.59.0"
+pyyaml = "~=5.4.1"
+matplotlib = "~=3.4.0"
+
+[dev-packages]
+
+[requires]
+python_version = "3.7"

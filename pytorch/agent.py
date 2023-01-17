@@ -5,6 +5,7 @@ from itertools import count
 import numpy as np
 from pytorch.memory import ReplayMemory, Transition
 from pytorch.config import Config
+from pathlib import Path
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -25,6 +26,7 @@ else:
 class QAgent():
     def __init__(self, env, config, model_class):
         self.env = env
+        self.model_dir = Path('./models')
         self.model_class = model_class
         self.config_file = config
         # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,6 +42,9 @@ class QAgent():
         self.last_step = 0
         self.last_episode = 0
         self.id = int(time.time())
+
+        if not os.path.exists(self.model_dir):
+            os.makedirs(self.model_dir)
 
     def _get_optimizer(self):
         try:
@@ -336,7 +341,7 @@ class QAgent():
             "episode_durations": self.episode_durations,
             "epsilon_vec": self.epsilon_vec,
             "config": self.config
-            }, f"./models/pytorch_{self.id}.pt")
+            }, f"{self.model_dir}/pytorch_{self.id}.pt")
 
     def play(self, verbose:bool=False, sleep:float=0.2, max_steps:int=100):
         # Play an episode
